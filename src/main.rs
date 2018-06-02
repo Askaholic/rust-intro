@@ -1,5 +1,6 @@
 mod guess;
+mod base64;
 
 fn main() {
-    guess::guess();
+    base64::read_and_encode();
 }
