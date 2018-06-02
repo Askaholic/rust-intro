@@ -29,22 +29,15 @@ pub fn encode(input: &[u8]) -> String {
     let mut i: usize = 0;
     while i < input.len() {
         if i+3 <= input.len() {
-            let chunk = &input[i..i+3];
-            for c in 0..4 {
-                let ind = six_bit_index(&chunk, c);
-                output += &ALPHABET[ind..ind+1];
-            }
+            encode_chunk(&input[i..i+3], 4, &mut output);
         }
         else {
             let num_bytes = input.len() % 3;
             let mut chunk = [0; 4];
-            for c in 0..num_bytes {
-                chunk[c] = input[i + c];
-            }
-            for c in 0..num_bytes+1 {
-                let ind = six_bit_index(&chunk, c);
-                output += &ALPHABET[ind..ind+1];
-            }
+
+            copy_to_chunk(&mut chunk, &input[i..input.len()]);
+            encode_chunk(&chunk, num_bytes + 1, &mut output);
+
             for _ in 0..3-num_bytes {
                 output += &ALPHABET[64..65];
             }
@@ -54,6 +47,13 @@ pub fn encode(input: &[u8]) -> String {
     output
 }
 
+fn encode_chunk(chunk: &[u8], num_bytes: usize, output: &mut String) {
+    for c in 0..num_bytes {
+        let ind = six_bit_index(&chunk, c);
+        *output += &ALPHABET[ind..ind+1];
+    }
+}
+
 fn six_bit_index(chunk: &[u8], index: usize) -> usize {
     match index {
         0 => (chunk[0] as usize & 0xFC) >> 2,
@@ -61,6 +61,12 @@ fn six_bit_index(chunk: &[u8], index: usize) -> usize {
         2 => ((chunk[1] as usize & 0xF) << 2 | (chunk[2] as usize & 0xC0) >> 6),
         3 => (chunk[2] as usize & 0x3F),
         _ => 64
+    }
+}
+
+fn copy_to_chunk(chunk: &mut [u8], input: &[u8]) {
+    for c in 0..input.len() {
+        chunk[c] = input[c];
     }
 }
 
