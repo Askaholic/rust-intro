@@ -5,7 +5,6 @@
 // Base64 encode some bytes
 
 use std;
-use std::io::prelude::Read;
 use std::io::Write;
 
 static ALPHABET: &'static str = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=";
@@ -14,35 +13,29 @@ pub fn read_and_encode() {
     let stdin = std::io::stdin();
     let stdout = std::io::stdout();
 
-    let mut buf = Vec::new();
-    let mut input_stream = stdin.lock();
-    input_stream.read_to_end(&mut buf)
-        .expect("Failed to read from stdin");
-
-    writeln(&mut stdout.lock(), encode(&buf).as_bytes());
+    writeln(&mut stdout.lock(), encode_stream(stdin.lock()).as_bytes());
 }
 
-pub fn encode(input: &[u8]) -> String {
-    // let mut output = String::with_capacity();
+pub fn encode_stream<T>(mut input_stream: T) -> String
+    where T: std::io::Read {
+
     let mut output = String::new();
-    // Break into 3 byte chunks
-    let mut i: usize = 0;
-    while i < input.len() {
-        if i+3 <= input.len() {
-            encode_chunk(&input[i..i+3], 4, &mut output);
-        }
-        else {
-            let num_bytes = input.len() % 3;
-            let mut chunk = [0; 4];
+    let mut buf: [u8; 3] = [0; 3];
 
-            copy_to_chunk(&mut chunk, &input[i..input.len()]);
-            encode_chunk(&chunk, num_bytes + 1, &mut output);
+    loop {
+        let num_read = match input_stream.read(&mut buf) {
+            Ok(0) => break,
+            Ok(n) => n,
+            Err(_) => continue
+        };
 
-            for _ in 0..3-num_bytes {
+        encode_chunk(&buf, num_read + 1, &mut output);
+        if num_read < buf.len() {
+            for _ in 0..3-num_read {
                 output += &ALPHABET[64..65];
             }
         }
-        i += 3;
+        clear_buf(&mut buf);
     }
     output
 }
@@ -64,13 +57,13 @@ fn six_bit_index(chunk: &[u8], index: usize) -> usize {
     }
 }
 
-fn copy_to_chunk(chunk: &mut [u8], input: &[u8]) {
-    for c in 0..input.len() {
-        chunk[c] = input[c];
+fn clear_buf(buf: &mut [u8]) {
+    for item in buf.iter_mut() {
+        *item = 0;
     }
 }
 
-fn writeln(out: &mut std::io::StdoutLock,buf: &[u8]) {
+fn writeln(out: &mut std::io::StdoutLock, buf: &[u8]) {
     out.write(&buf)
         .expect("Failed to write to stdout");
     out.write(&[b'\n'])
