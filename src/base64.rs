@@ -13,11 +13,14 @@ pub fn read_and_encode() {
     let stdin = std::io::stdin();
     let stdout = std::io::stdout();
 
-    writeln(&mut stdout.lock(), encode_stream(stdin.lock()).as_bytes());
+    let mut out = stdout.lock();
+    encode_stream_print(stdin.lock(), &mut out);
+    out.write(&[b'\n']).expect("Failed to write to stdout");
 }
 
-pub fn encode_stream<T>(mut input_stream: T) -> String
-    where T: std::io::Read {
+pub fn encode_stream_print<T, U>(mut input_stream: T, output_stream: &mut U)
+    where T: std::io::Read,
+          U: std::io::Write {
 
     let mut output = String::new();
     let mut buf: [u8; 3] = [0; 3];
@@ -35,9 +38,10 @@ pub fn encode_stream<T>(mut input_stream: T) -> String
                 output += &ALPHABET[64..65];
             }
         }
+        output_stream.write(&output.as_bytes()).expect("Failed to write to stdout");
         clear_buf(&mut buf);
+        output.clear();
     }
-    output
 }
 
 fn encode_chunk(chunk: &[u8], num_bytes: usize, output: &mut String) {
@@ -61,11 +65,4 @@ fn clear_buf(buf: &mut [u8]) {
     for item in buf.iter_mut() {
         *item = 0;
     }
-}
-
-fn writeln(out: &mut std::io::StdoutLock, buf: &[u8]) {
-    out.write(&buf)
-        .expect("Failed to write to stdout");
-    out.write(&[b'\n'])
-        .expect("Failed to write to stdout");
 }
